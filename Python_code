@@ -1,0 +1,232 @@
+import numpy as np
+import cv2
+
+
+def callback(x):
+    pass
+
+cv2.namedWindow('controls', 2)
+cv2.resizeWindow("controls", 550, 350);
+
+cap = cv2.VideoCapture(2)
+cv2.namedWindow('image')
+
+ilowH = 0
+ihighH = 179
+
+ilowS = 0
+ihighS = 255
+ilowV = 0
+ihighV = 255
+
+# create trackbars for color change
+cv2.createTrackbar('lowH','controls',ilowH,179,callback)
+cv2.createTrackbar('highH','controls',ihighH,179,callback)
+
+cv2.createTrackbar('lowS','controls',ilowS,255,callback)
+cv2.createTrackbar('highS','controls',ihighS,255,callback)
+
+cv2.createTrackbar('lowV','controls',ilowV,255,callback)
+cv2.createTrackbar('highV','controls',ihighV,255,callback)
+
+
+
+while True:
+    # grab the frame
+    ret, frame = cap.read()
+    # frame = cv2.imread('img_3.png')
+    # get trackbar positions
+    ilowH = cv2.getTrackbarPos('lowH', 'controls')
+    ihighH = cv2.getTrackbarPos('highH', 'controls')
+    ilowS = cv2.getTrackbarPos('lowS', 'controls')
+    ihighS = cv2.getTrackbarPos('highS', 'controls')
+    ilowV = cv2.getTrackbarPos('lowV', 'controls')
+    ihighV = cv2.getTrackbarPos('highV', 'controls')
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    lower_hsv = np.array([ilowH, ilowS, ilowV])
+    higher_hsv = np.array([ihighH, ihighS, ihighV])
+
+    mask = cv2.inRange(hsv, lower_hsv, higher_hsv)
+
+    frame = cv2.bitwise_and(frame, frame, mask=mask)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # show thresholded image
+    cv2.imshow('image', frame)
+    cv2.imshow('HSV', hsv)
+    k = cv2.waitKey(1000) & 0xFF  # large wait time to remove freezing
+    if k == 113 or k == 27:
+        break
+
+
+-------------------------------------
+
+
+import cv2
+import numpy as np
+import socket
+
+# client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# host = '127.0.0.1'
+# port = 2222
+# msg = ''
+# client.connect((host,port))
+#
+# data = client.recv(1024)    # Recieve 1: "Start communication now"
+# print(data,"\n")
+
+colors = ["red", "grn", "blu","oth"]
+shapes = ["tri","rec","pen","hex","cir"]
+contours_list = []
+data = ""
+
+class Contour:
+    def __init__(self,shape,color,center,contour_area):
+        self.shape = shape
+        self.color = color
+        self.center = center
+        self.area = contour_area
+
+
+
+def add_obj(shape,color,center,area):
+    area_limits = (20000, 30000)                                # if an object inside this limits, then add it to the contour_list
+    # if (limits[0]< center[0] < limits[1]) and  (limits[2] < center[1] < limits[3]) :
+    if area_limits[0]< area <area_limits[1] :
+        contours_list.append(Contour(shape, color, center,area))
+    # else:
+    #     pass
+
+
+def callback(x):
+    pass
+
+def find_contour(img):
+    pass
+
+
+
+
+
+# create a seperate window named 'controls' for trackbar
+cv2.namedWindow('controls', 2)
+cv2.resizeWindow("controls", 550, 10);
+
+
+
+# create trackbars for high,low H,S,V
+cv2.createTrackbar('low H', 'controls', 0, 255, callback)
+cv2.createTrackbar('high H', 'controls', 255, 255, callback)
+
+cv2.createTrackbar('low S', 'controls', 0, 255, callback)
+cv2.createTrackbar('high S', 'controls', 255, 255, callback)
+
+cv2.createTrackbar('low V', 'controls', 0, 255, callback)
+cv2.createTrackbar('high V', 'controls', 255, 255, callback)
+
+# vid = cv2.VideoCapture(0)
+
+while (data != "exit"):
+    # read source image
+    img = cv2.imread("Img_5.jpeg")
+
+    cv2.imshow('shapes', img)
+    # ret, img = vid.read()
+    # convert sourece image to HSC color mode
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    cv2.imshow('shapes_hsv', hsv)
+    cv2.imshow('shapes', img)
+    H_low = cv2.getTrackbarPos('low H', 'controls')
+    H_high = cv2.getTrackbarPos('high H', 'controls')
+    S_low = cv2.getTrackbarPos('low S', 'controls')
+    S_high = cv2.getTrackbarPos('high S', 'controls')
+    V_low = cv2.getTrackbarPos('low V', 'controls')
+    V_high = cv2.getTrackbarPos('high V', 'controls')
+
+    limits_low = [H_low,S_low,V_low]                # From trackbars
+    limits_high = [H_high,S_high,V_high]            # From trackbars
+
+    # red_low = [0,146,0]
+    # red_high = [27,255,255]
+    # blue_low = [118,0,0]
+    # blue_high = [200,255,255]
+    # grn_low = [40,0,0]
+    # grn_high = [105,255,255]
+
+    grn_low = [25, 175, 189]
+    grn_high = [40, 255, 255]
+    blue_low = [0, 0, 0]
+    blue_high = [0, 0, 0]
+    red_low = [0, 191, 0]
+    red_high = [12, 255, 255]
+
+    var_limits_low = [red_low,grn_low, blue_low,limits_low]
+    var_limits_high = [red_high,grn_high, blue_high,limits_high]
+
+
+    contours_list = []
+    contours_cnt = 0
+
+    for i in range(3):
+        hsv_low = np.array(var_limits_low[i], np.uint8)         # To use trackbar use: var_limits_low[3]
+        hsv_high = np.array(var_limits_high[i], np.uint8)       # To use trackbar use: var_limits_high[3]
+
+        mask = cv2.inRange(hsv, hsv_low, hsv_high)
+        res = cv2.bitwise_and(img, img, mask=mask)
+
+        cv2.imshow('mask', mask)
+        cv2.imshow('res', res)
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            contours_cnt += 1
+            approx = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True)
+            area = cv2.contourArea(contour)
+            M = cv2.moments(contour)
+            if M['m00'] != 0.0:
+                x = int(M['m10'] / M['m00'])
+                y = int(M['m01'] / M['m00'])
+
+            if len(approx) == 3:
+                cv2.putText(img, f'{colors[i]} Triangle', (x, y),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                add_obj("tri", colors[i], (x,y), area)
+
+            elif len(approx) == 4:
+                cv2.putText(img, f'{colors[i]} Rectangle', (x, y),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                add_obj("rec", colors[i], (x, y), area)
+            elif len(approx) == 5:
+                cv2.putText(img, f'{colors[i]} Pentagon', (x, y),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                add_obj("pen", colors[i], (x, y), area)
+            elif len(approx) == 6:
+                cv2.putText(img, f'{colors[i]} Hexagon', (x, y),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                add_obj("hex", colors[i], (x, y), area)
+            else:
+                cv2.putText(img, f'{colors[i]} Circle', (x, y),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                add_obj("cir", colors[i], (x, y), area)
+
+            cv2.imshow('shapes', img)
+            # cv2.waitKey(1000)
+
+    # for obj in contours_list:
+    #     if obj.color == "red":
+    #         print(obj.shape,obj.color,obj.center,obj.area)
+    # break
+    # break
+    # data = client.recv(1024)  # Recieve 2: "Color"
+    # print(data, "\n")
+    #
+    # for i in contours_list:
+    #     msg = str(i.shape) + " " + str(i.color) + " " + str(i.center[0]) + "," + str(i.center[1])
+    #     print(msg)
+    #     client.send(bytes(msg, 'utf-8'))  # Send 4: obj_ 1
+    #     cv2.waitKey(10000)
+    #
+    # cv2.waitKey(10000)
+    # msg = "end"
+    # client.send(bytes(msg, 'utf-8'))
+
+# cv2.destroyAllWindows()
+
