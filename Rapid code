@@ -1,0 +1,203 @@
+MODULE CalibData
+    PERS tooldata Festo_Griper_1:=[FALSE,[[0,0,130],[1,0,0,0]],[1,[1,1,1],[1,0,0,0],0,0,0]];
+    TASK PERS wobjdata Workobject_1:=[FALSE,TRUE,"",[[300,300,300],[0.707106781,0,0.707106781,0]],[[0,0,0],[1,0,0,0]]];
+    TASK PERS wobjdata center:=[FALSE,TRUE,"",[[0,0,0],[0,0.707106781,0.707106781,0]],[[0,0,0],[1,0,0,0]]]; 
+    PERS tooldata sugekopp:=[TRUE,[[0,0,88],[1,0,0,0]],[1,[0,0,1],[1,0,0,0],0,1,0]];
+ENDMODULE  
+
+---------------------------------
+MODULE MainModule
+    VAR socketdev server;
+    VAR socketdev client; 
+    VAR String client_IP;
+    VAR String data := "";
+    VAR String msg := "Hi Client";   
+    VAR String sorteringsmetode;
+    VAR num knapp := 4;
+    VAR num obj_cnt_side_1 := 0;
+    VAR num obj_cnt_side_2 := 0;
+    VAR num obj_cnt_side_3 := 0;
+    VAR num obj_h := -21;
+    VAR String form ;
+    VAR String farge ;
+    VAR String senter_x_str ;
+    VAR String senter_y_str ;
+    VAR num senter_x := 100 ;
+    VAR num senter_y := 100;
+    VAR num z_offset := -250;
+    VAR num len ; 
+    VAR num comma;
+    VAR bool ok;
+    PERS robtarget obj_pos :=[[161.935,590.4,-50],[1,0,0,0],[0,0,0,0],[9E+9,9E+9,9E+9,9E+9,9E+9,9E+9]];
+    CONST robtarget start_pos:=[[-500,0,-200],[1,0,0,0],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    
+    PROC main()
+        SocketCreate server;    
+        SocketBind server,"192.168.12.67",2222;  
+        SocketListen server;
+        SocketAccept server, client,\ClientAddress := Client_IP,\Time := 5000000;
+        msg := "Start communication now!";
+        SocketSend client \Str := msg;     !send_1 "Start communication now!"
+        WHILE msg <> "exit" DO    
+            move_to_start;
+            TPReadFK knapp,"Sorter etter: ", "Farge", "Form", "exit", "", ""; 
+            
+            obj_cnt_side_1 := 0;
+            obj_cnt_side_2 := 0;
+            obj_cnt_side_3 := 0;
+            
+            IF knapp = 1 THEN  
+                sorteringsmetode := "Farge";                                                     ! SEND 
+                SocketSend client \Str := "color";  !send2 "color"
+                recieve_data;
+            ELSEIF knapp = 2 THEN
+                sorteringsmetode := "Form";                                                     ! SEND 
+                SocketSend client \Str := "shape";
+                recieve_data;
+            ELSEIF knapp = 3 THEN
+                sorteringsmetode := "exit";                                                     ! SEND 
+                SocketSend client \Str := "exit"; 
+                msg := "exit";
+            ENDIF        
+        ENDWHILE
+        SocketClose server;
+        SocketClose client;
+    ENDPROC
+    
+    PROC recieve_data()     
+        WHILE TRUE DO
+                SocketReceive client \Str := data;                                  !recieve 6
+                IF data = "end" THEN
+                    RETURN;
+                ENDIF
+                Sorter data;
+            ENDWHILE
+    ENDPROC
+ENDMODULE
+
+---------------------------------------------------
+
+MODULE Module1
+    CONST robtarget Target_50:=[[0,500,0],[1,0,0,0],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Target_60:=[[200,500,0],[1,0,0,0],[0,0,1,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Target_70:=[[0,700,0],[1,0,0,0],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Target_80:=[[200,700,0],[1,0,0,0],[0,0,1,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget side_1:=[[-500,550,0],[1,0,0,0],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget side_2:=[[400,550,0],[1,0,0,0],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget side_3:=[[-300,550,0],[1,0,0,0],[0,0,0,0],[9E+09,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    PROC Path_10()
+        MoveL Target_50,v500,fine,sugekopp\WObj:=center; 
+        MoveL Target_60,v500,fine,sugekopp\WObj:=center;
+        MoveL Target_70,v500,fine,sugekopp\WObj:=center;
+        MoveL Target_80,v500,fine,sugekopp\WObj:=center;
+        MoveL side_1,v500,fine,sugekopp\WObj:=center;
+        MoveL side_2,v500,fine,sugekopp\WObj:=center;
+        MoveL side_3,v500,fine,sugekopp\WObj:=center;
+    ENDPROC
+ENDMODULE 
+
+
+----------------------------
+MODULE Sortering
+        
+    PROC sorter(string data) 
+        ! sir red 
+        form := StrPart(data,1,3); 
+        farge := StrPart(data,5,3);
+        len := StrLen(data);
+        comma := StrFind(data,1,",");
+        senter_x_str := StrPart(data,9,comma-9);
+        senter_y_str := StrPart(data,comma+1,len-comma); 
+        ok := StrToVal(senter_x_str,senter_x);
+        ok := StrToVal(senter_y_str,senter_y);
+        TPWrite farge+ " " + form+ " " + senter_x_str + " " + senter_y_str ;
+        
+        IF sorteringsmetode = "Farge" THEN
+             
+            IF farge = "red" THEN
+                 TPWrite "move form (senter_x,senter_y) to (side2)";
+                 obj_pos.trans.x := -5276/10 + 597 *senter_x/1000;
+                 obj_pos.trans.y := 876 - 6 *senter_y/10;  
+                 obj_pos.trans.z := obj_h;
+                 obj_cnt_side_1 := obj_cnt_side_1 + 1;
+                 place obj_pos , side_2,obj_cnt_side_1;
+                 WaitTime(0.5);
+             
+             ELSEIF farge = "yel" THEN
+                 TPWrite "move form (senter_x,senter_y) to (side3)";
+                 obj_pos.trans.x := -5276/10 + 597 *senter_x/1000;
+                 obj_pos.trans.y := 876 - 6 *senter_y/10;
+                 obj_pos.trans.z := obj_h;
+                 obj_cnt_side_2 := obj_cnt_side_2 + 1;
+                 place obj_pos , side_3,obj_cnt_side_2;
+                 WaitTime(0.5);
+             
+             ELSEIF farge = "blu" THEN
+                 TPWrite "move form (senter_x,senter_y) to (side1)";
+                 obj_pos.trans.x := -5276/10 + 597 *senter_x/1000;
+                 obj_pos.trans.y := 876 - 6 *senter_y/10;
+                 obj_pos.trans.z := obj_h;
+                 obj_cnt_side_3 := obj_cnt_side_3 + 1;
+                 place obj_pos , side_1,obj_cnt_side_3;
+                 WaitTime(0.5);
+             
+             ELSE
+             ENDIF
+             
+        ELSEIF sorteringsmetode = "Form" THEN
+            IF form = "tri" THEN
+                 TPWrite "move form (senter_x,senter_y) to (side1)";
+                 obj_pos.trans.x := -5276/10 + 597 *senter_x/1000;
+                 obj_pos.trans.y := 876 - 6 *senter_y/10;
+                 obj_pos.trans.z := obj_h;
+                 obj_cnt_side_1 := obj_cnt_side_1 + 1;
+                 place obj_pos, side_1,obj_cnt_side_1;
+                 WaitTime(0.5);
+             
+             ELSEIF form = "rec" THEN
+                 TPWrite "move form (senter_x,senter_y) to (side2)";
+                 obj_pos.trans.x := -5276/10 + 597 *senter_x/1000;
+                 obj_pos.trans.y := 876 - 6 *senter_y/10;
+                 obj_pos.trans.z := obj_h;
+                 obj_cnt_side_2 := obj_cnt_side_2 + 1;
+                 place obj_pos, side_2,obj_cnt_side_2;
+                 WaitTime(0.5);
+             
+             ELSEIF form = "cir" THEN
+                 TPWrite "move form (senter_x,senter_y) to (side3)";
+                 obj_pos.trans.x := -5276/10 + 597 *senter_x/1000;
+                 obj_pos.trans.y := 876 - 6 *senter_y/10;
+                 obj_pos.trans.z := obj_h;
+                 obj_cnt_side_3 := obj_cnt_side_3 + 1;
+                 place obj_pos, side_3, obj_cnt_side_3;
+                 WaitTime(0.5);
+             
+             ELSE
+             ENDIF
+             
+        ELSE
+        ENDIF
+        
+    ENDPROC
+   
+    PROC place(robtarget center_pnt ,robtarget side, num obj_cnt)
+        
+        MoveJ offs(center_pnt,0,0,z_offset),v100,fine,sugekopp\WObj:=center;
+        MoveL center_pnt,v100,fine,sugekopp\WObj:=center;
+        set DO10_1;
+        WaitTime(0.5);
+        MoveL offs(center_pnt,0,0,z_offset),v100,fine,sugekopp\WObj:=center;
+        MoveJ offs(side,0,0,z_offset),v100,fine,sugekopp\WObj:=center;
+        MoveL offs(side,0,0, obj_h * obj_cnt),v100,fine,sugekopp\WObj:=center;
+        reset DO10_1;
+        WaitTime(0.5);
+        MoveL offs(side,0,0,z_offset),v100,fine,sugekopp\WObj:=center;
+        
+    ENDPROC 
+    
+    PROC move_to_start()
+        
+        MoveJ start_pos,v1000,fine,sugekopp\WObj:=center;
+
+    ENDPROC 
+
